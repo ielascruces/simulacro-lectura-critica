@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulacro Virtual - Lectura Crítica</title>
+<link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+
+<!-- ======== PANTALLA DE INICIO ======== -->
+<div id="portada" class="portada">
+  <h1>Simulacro Virtual</h1>
+  <p class="subtitulo">Lectura Crítica</p>
+
+  <div class="info">
+    <h3>Instrucciones</h3>
+    <ul>
+      <li><strong>Preguntas:</strong> 59 (de la 23 a la 81)</li>
+      <li><strong>Tiempo límite:</strong> 90 minutos</li>
+      <li><strong>Pasajes:</strong> 14 pasajes con textos e infografías</li>
+      <li><strong>Tipo:</strong> Selección múltiple con única respuesta (A, B, C, D)</li>
+      <li>Lea cuidadosamente cada pasaje antes de responder.</li>
+      <li>Puede navegar entre pasajes usando los botones o indicadores de puntos.</li>
+      <li>Al finalizar, recibirá una retroalimentación completa con explicaciones.</li>
+      <li>El temporizador se activa al iniciar. Si se agota el tiempo, la prueba se entrega automáticamente.</li>
+    </ul>
+  </div>
+
+  <div class="nombre-input">
+    <label for="nombreEstudiante">Nombre del estudiante</label>
+    <input type="text" id="nombreEstudiante" placeholder="Escribe tu nombre completo" autocomplete="off">
+    <p class="error-nombre" id="errorNombre" style="display:none">Debes ingresar tu nombre para comenzar.</p>
+  </div>
+
+  <button class="btn-iniciar" onclick="iniciarSimulacro()">Comenzar Simulacro</button>
+</div>
+
+<!-- ======== BARRA SUPERIOR ======== -->
+<div id="topbar" class="topbar" style="display:none">
+  <span class="titulo-evaluacion">Lectura Crítica</span>
+  <div id="timer" class="timer">⏱ 90:00</div>
+  <span class="progreso" id="progreso">0/59 respondidas</span>
+  <button class="btn-finalizar" onclick="confirmarFinalizar()">Finalizar prueba</button>
+</div>
+
+<!-- ======== ÁREA DE EXAMEN ======== -->
+<div id="examen" class="examen-layout">
+  <div class="pasaje-container">
+    <!-- Pasaje de lectura -->
+    <div class="pasaje-box" id="pasajeBox">
+      <div id="pasajeContenido"></div>
+    </div>
+    <!-- Preguntas -->
+    <div class="preguntas-box" id="preguntasBox"></div>
+  </div>
+</div>
+
+<!-- Navegación -->
+<div id="navegacion" class="navegacion" style="display:none">
+  <button class="btn-nav" id="btnAnterior" onclick="pasajeAnterior()" disabled>← Anterior</button>
+  <div class="indicador-pasajes" id="indicadorPasajes"></div>
+  <button class="btn-nav" id="btnSiguiente" onclick="pasajeSiguiente()">Siguiente →</button>
+</div>
+
+<!-- Modal de confirmación -->
+<div id="modalConfirmar" class="modal-overlay">
+  <div class="modal-box">
+    <h2>¿Finalizar la prueba?</h2>
+    <p>Una vez finalizada no podrá modificar sus respuestas.</p>
+    <div id="pendientesMsg"></div>
+    <div class="modal-botones">
+      <button class="btn-cancelar" onclick="cerrarModal()">Volver a la prueba</button>
+      <button class="btn-confirmar" onclick="finalizarPrueba()">Sí, finalizar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======== RETROALIMENTACIÓN ======== -->
+<div id="retroalimentacion" class="retroalimentacion">
+  <div class="resultado-header" id="resultadoHeader"></div>
+  <div class="tabla-resultados">
+    <div class="tabla-header">
+      <h3>Detalle por pregunta</h3>
+      <div class="filtros">
+        <button class="btn-filtro activo" onclick="filtrarResultados('todas')">Todas</button>
+        <button class="btn-filtro" onclick="filtrarResultados('correctas')">Correctas</button>
+        <button class="btn-filtro" onclick="filtrarResultados('incorrectas')">Incorrectas</button>
+      </div>
+    </div>
+    <div id="listaResultados"></div>
+  </div>
+</div>
+
+<script src="js/datos.js"></script>
+<script>
+// ============================================================
+// MOTOR DEL SIMULACRO
+// ============================================================
+
+const TIEMPO_TOTAL = 90 * 60; // 90 minutos en segundos
+let tiempoRestante = TIEMPO_TOTAL;
+let timerInterval = null;
+let pasajeActual = 0;
+let respuestas = {};
+let pruebaActiva = false;
+let nombreEstudiante = '';
+
+const pasajes = DATOS_SIMULACRO.pasajes;
+
+(function() {
+  const saved = localStorage.getItem('simulacro_nombre');
+  if (saved) {
+    document.getElementById('nombreEstudiante').value = saved;
+  }
+})();
+
+// === INICIAR SIMULACRO ===
+function iniciarSimulacro() {
+  const nombreInput = document.getElementById('nombreEstudiante');
+  const nombre = nombreInput.value.trim();
+
+  if (!nombre) {
+    document.getElementById('errorNombre').style.display = 'block';
+    nombreInput.focus();
+    return;
+  }
+
+  nombreEstudiante = nombre;
+  localStorage.setItem('simulacro_nombre', nombre);
+  document.title = nombre + ' - Simulacro Lectura Crítica';
+
+  document.getElementById('portada').style.display = 'none';
+  document.getElementById('topbar').style.display = 'flex';
+  document.getElementById('examen').classList.add('activo');
+  document.getElementById('navegacion').style.display = 'flex';
+  document.getElementById('retroalimentacion').classList.remove('activo');
+
+  pruebaActiva = true;
+  pasajeActual = 0;
+  respuestas = {};
+  tiempoRestante = TIEMPO_TOTAL;
+
+  construirIndicadores();
+  mostrarPasaje(0);
+  iniciarTimer();
+}
+
+// === TEMPORIZADOR ===
+function iniciarTimer() {
+  actualizarTimerDisplay();
+  timerInterval = setInterval(() => {
+    tiempoRestante--;
+    actualizarTimerDisplay();
+
+    if (tiempoRestante <= 0) {
+      clearInterval(timerInterval);
+      finalizarPrueba();
+    }
+  }, 1000);
+}
+
+function actualizarTimerDisplay() {
+  const min = Math.floor(tiempoRestante / 60);
+  const seg = tiempoRestante % 60;
+  const display = document.getElementById('timer');
+  display.textContent = `⏱ ${String(min).padStart(2,'0')}:${String(seg).padStart(2,'0')}`;
+
+  display.classList.remove('warning', 'danger');
+  if (tiempoRestante <= 60) display.classList.add('danger');
+  else if (tiempoRestante <= 300) display.classList.add('warning');
+}
+
+// === INDICADORES DE PASAJES ===
+function construirIndicadores() {
+  const container = document.getElementById('indicadorPasajes');
+  container.innerHTML = '';
+  pasajes.forEach((p, i) => {
+    const dot = document.createElement('span');
+    dot.className = 'dot';
+    dot.title = p.titulo;
+    dot.onclick = () => { pasajeActual = i; mostrarPasaje(i); };
+    container.appendChild(dot);
+  });
+}
+
+function actualizarIndicadores() {
+  const dots = document.querySelectorAll('#indicadorPasajes .dot');
+  dots.forEach((dot, i) => {
+    dot.classList.remove('actual', 'completo');
+    if (i === pasajeActual) dot.classList.add('actual');
+    const pasaje = pasajes[i];
+    const todasRespondidas = pasaje.preguntas.every(q => respuestas[q.numero]);
+    if (todasRespondidas) dot.classList.add('completo');
+  });
+}
+
+// === MOSTRAR PASAJE ===
+function mostrarPasaje(index) {
+  if (index < 0 || index >= pasajes.length) return;
+  pasajeActual = index;
+  const pasaje = pasajes[index];
+
+  // Contenido del pasaje
+  const pasajeDiv = document.getElementById('pasajeContenido');
+  let html = `<div class="pasaje-titulo">${pasaje.titulo}</div>`;
+  html += `<div class="pasaje-autor">${pasaje.autor}</div>`;
+
+  if (pasaje.tipo === 'infografia' && pasaje.imagen) {
+    html += `<img src="${pasaje.imagen}" alt="${pasaje.titulo}" class="pasaje-infografia" onerror="this.style.display='none'">`;
+  }
+  html += `<div class="pasaje-texto">${escapeHtml(pasaje.texto)}</div>`;
+  pasajeDiv.innerHTML = html;
+
+  // Preguntas
+  const preguntasDiv = document.getElementById('preguntasBox');
+  let preguntasHtml = '';
+  pasaje.preguntas.forEach((q, idx) => {
+    const esUltima = idx === pasaje.preguntas.length - 1;
+    preguntasHtml += `<div class="pregunta-card${esUltima ? ' ultima' : ''}" id="preg-${q.numero}">`;
+    preguntasHtml += `<div class="num-pregunta">${q.numero}</div>`;
+    preguntasHtml += `<div class="enunciado">${escapeHtml(q.enunciado)}</div>`;
+    preguntasHtml += `<div class="opciones">`;
+
+    ['A','B','C','D'].forEach(letra => {
+      const seleccionada = respuestas[q.numero] === letra ? ' seleccionada' : '';
+      preguntasHtml += `
+        <label class="opcion${seleccionada}" data-pregunta="${q.numero}" data-letra="${letra}" onclick="seleccionarRespuesta(${q.numero}, '${letra}')">
+          <input type="radio" name="preg_${q.numero}" value="${letra}" ${seleccionada ? 'checked' : ''}>
+          <span class="letra">${letra}</span>
+          <span>${escapeHtml(q.opciones[letra])}</span>
+        </label>`;
+    });
+
+    preguntasHtml += `</div></div>`;
+  });
+  preguntasDiv.innerHTML = preguntasHtml;
+
+  // Botones navegación
+  document.getElementById('btnAnterior').disabled = (index === 0);
+  document.getElementById('btnSiguiente').disabled = (index === pasajes.length - 1);
+
+  actualizarIndicadores();
+  actualizarProgreso();
+
+  // Scroll al inicio de las preguntas
+  document.getElementById('examen').scrollIntoView({ behavior: 'smooth' });
+}
+
+function pasajeAnterior() {
+  if (pasajeActual > 0) mostrarPasaje(pasajeActual - 1);
+}
+
+function pasajeSiguiente() {
+  if (pasajeActual < pasajes.length - 1) mostrarPasaje(pasajeActual + 1);
+}
+
+// === SELECCIONAR RESPUESTA ===
+function seleccionarRespuesta(numPregunta, letra) {
+  if (!pruebaActiva) return;
+  respuestas[numPregunta] = letra;
+
+  // Actualizar UI
+  const opciones = document.querySelectorAll(`[data-pregunta="${numPregunta}"]`);
+  opciones.forEach(op => {
+    op.classList.remove('seleccionada');
+    if (op.dataset.letra === letra) op.classList.add('seleccionada');
+  });
+
+  actualizarIndicadores();
+  actualizarProgreso();
+}
+
+// === PROGRESO ===
+function actualizarProgreso() {
+  const totalPreguntas = pasajes.reduce((sum, p) => sum + p.preguntas.length, 0);
+  const respondidas = Object.keys(respuestas).length;
+  document.getElementById('progreso').textContent = `${respondidas}/${totalPreguntas} respondidas`;
+}
+
+// === CONFIRMAR FINALIZAR ===
+function confirmarFinalizar() {
+  const totalPreguntas = pasajes.reduce((sum, p) => sum + p.preguntas.length, 0);
+  const respondidas = Object.keys(respuestas).length;
+  const pendientes = totalPreguntas - respondidas;
+
+  const msg = document.getElementById('pendientesMsg');
+  if (pendientes > 0) {
+    msg.innerHTML = `<div class="preguntas-pendientes">⚠️ Tiene <strong>${pendientes}</strong> preguntas sin responder.</div>`;
+  } else {
+    msg.innerHTML = '';
+  }
+
+  document.getElementById('modalConfirmar').classList.add('activo');
+}
+
+function cerrarModal() {
+  document.getElementById('modalConfirmar').classList.remove('activo');
+}
+
+// === FINALIZAR PRUEBA ===
+function finalizarPrueba() {
+  pruebaActiva = false;
+  clearInterval(timerInterval);
+  document.getElementById('modalConfirmar').classList.remove('activo');
+  document.getElementById('topbar').style.display = 'none';
+  document.getElementById('examen').classList.remove('activo');
+  document.getElementById('navegacion').style.display = 'none';
+  document.getElementById('retroalimentacion').classList.add('activo');
+
+  mostrarResultados();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// === MOSTRAR RESULTADOS ===
+function mostrarResultados() {
+  const totalPreguntas = pasajes.reduce((sum, p) => sum + p.preguntas.length, 0);
+  let correctas = 0;
+  let incorrectas = 0;
+  let sinResponder = 0;
+
+  const resultados = [];
+
+  pasajes.forEach(pasaje => {
+    pasaje.preguntas.forEach(q => {
+      const respUsuario = respuestas[q.numero] || null;
+      const esCorrecta = respUsuario === q.correcta;
+      if (!respUsuario) sinResponder++;
+      else if (esCorrecta) correctas++;
+      else incorrectas++;
+
+      resultados.push({
+        numero: q.numero,
+        enunciado: q.enunciado,
+        correcta: q.correcta,
+        usuario: respUsuario,
+        esCorrecta: esCorrecta,
+        explicacion: q.explicacion,
+        opciones: q.opciones
+      });
+    });
+  });
+
+  const puntaje = Math.round((correctas / totalPreguntas) * 100);
+  let claseBarra = 'bajo';
+  let nivelTexto = 'Básico';
+
+  if (puntaje >= 80) { claseBarra = 'excelente'; nivelTexto = 'Excelente'; }
+  else if (puntaje >= 60) { claseBarra = 'bueno'; nivelTexto = 'Bueno'; }
+  else if (puntaje >= 40) { claseBarra = 'regular'; nivelTexto = 'Regular'; }
+
+  // Header
+  const header = document.getElementById('resultadoHeader');
+  header.innerHTML = `
+    <h2>Resultados del Simulacro</h2>
+    <p style="font-size:1.1rem;color:var(--secundario);margin-bottom:15px">Estudiante: <strong>${escapeHtml(nombreEstudiante)}</strong></p>
+    <div class="puntaje">${puntaje}/100</div>
+    <div class="barra-progreso-wrapper">
+      <div class="barra-progreso-fill ${claseBarra}" style="width:${puntaje}%"></div>
+    </div>
+    <p style="margin-top:10px;font-weight:600;color:var(--primario)">Nivel: ${nivelTexto}</p>
+    <div class="puntaje-detalle">
+      <div class="puntaje-item">
+        <div class="valor" style="color:var(--correcto)">${correctas}</div>
+        <div class="label">Correctas</div>
+      </div>
+      <div class="puntaje-item">
+        <div class="valor" style="color:var(--incorrecto)">${incorrectas}</div>
+        <div class="label">Incorrectas</div>
+      </div>
+      <div class="puntaje-item">
+        <div class="valor" style="color:var(--acento)">${sinResponder}</div>
+        <div class="label">Sin responder</div>
+      </div>
+      <div class="puntaje-item">
+        <div class="valor">${totalPreguntas}</div>
+        <div class="label">Total</div>
+      </div>
+    </div>
+    <p style="color:var(--texto-claro);margin-top:15px">Tiempo restante: ${Math.floor(tiempoRestante/60)}min ${tiempoRestante%60}s</p>
+    <p style="color:var(--texto-claro);font-size:0.85rem;margin-top:5px">Revise cada pregunta abajo para ver la explicación de la respuesta correcta.</p>
+  `;
+
+  // Lista de resultados
+  const lista = document.getElementById('listaResultados');
+  window._todosResultados = resultados;
+  renderizarResultados(resultados);
+}
+
+function renderizarResultados(resultados) {
+  const lista = document.getElementById('listaResultados');
+  lista.innerHTML = '';
+
+  resultados.forEach(r => {
+    let claseEstado = 'sin-respuesta';
+    let textoEstado = 'Sin responder';
+    if (r.usuario && r.esCorrecta) { claseEstado = 'correcto'; textoEstado = 'Correcta'; }
+    else if (r.usuario && !r.esCorrecta) { claseEstado = 'incorrecto'; textoEstado = 'Incorrecta'; }
+
+    let respuestasHtml = '';
+    if (r.usuario) {
+      const claseUsuario = r.esCorrecta ? 'resp-correcta' : 'resp-incorrecta';
+      respuestasHtml += `<span>Tu respuesta: <strong class="${claseUsuario}">${r.usuario}</strong></span>`;
+    } else {
+      respuestasHtml += `<span>Tu respuesta: <strong style="color:#856404">Sin responder</strong></span>`;
+    }
+    respuestasHtml += `<span>Correcta: <strong class="resp-correcta">${r.correcta}</strong></span>`;
+
+    lista.innerHTML += `
+      <div class="resultado-item" data-estado="${claseEstado}">
+        <div class="r-header">
+          <span class="r-numero">Pregunta ${r.numero}</span>
+          <span class="r-estado ${claseEstado}">${textoEstado}</span>
+        </div>
+        <div class="r-enunciado">${escapeHtml(r.enunciado.substring(0,200))}${r.enunciado.length > 200 ? '...' : ''}</div>
+        <div class="r-respuestas">${respuestasHtml}</div>
+        <div class="r-explicacion">💡 ${escapeHtml(r.explicacion)}</div>
+      </div>`;
+  });
+}
+
+function filtrarResultados(filtro) {
+  document.querySelectorAll('.btn-filtro').forEach(b => b.classList.remove('activo'));
+  event.target.classList.add('activo');
+
+  let resultados = window._todosResultados || [];
+  if (filtro === 'correctas') resultados = resultados.filter(r => r.usuario && r.esCorrecta);
+  else if (filtro === 'incorrectas') resultados = resultados.filter(r => r.usuario && !r.esCorrecta);
+
+  renderizarResultados(resultados);
+}
+
+// === UTILIDADES ===
+function escapeHtml(texto) {
+  if (!texto) return '';
+  const div = document.createElement('div');
+  div.textContent = texto;
+  return div.innerHTML;
+}
+</script>
+
+</body>
+</html>
