@@ -77,22 +77,15 @@
   </div>
 </div>
 
-<!-- ======== RETROALIMENTACIÓN ======== -->
-<div id="retroalimentacion" class="retroalimentacion">
-  <div class="resultado-header" id="resultadoHeader"></div>
-  <div style="text-align:center;margin-bottom:20px">
+<!-- ======== PANTALLA DE ÉXITO ======== -->
+<div id="pantallaExito" class="pantalla-exito">
+  <div class="exito-card">
+    <div class="exito-icono">✅</div>
+    <h2>Prueba finalizada con éxito</h2>
+    <p class="exito-estudiante" id="exitoEstudiante"></p>
+    <div class="exito-resumen" id="exitoResumen"></div>
     <button class="btn-descargar-pdf" onclick="descargarPDF()" id="btnDescargarPDF">📄 Descargar PDF</button>
-  </div>
-  <div class="tabla-resultados">
-    <div class="tabla-header">
-      <h3>Detalle por pregunta</h3>
-      <div class="filtros">
-        <button class="btn-filtro activo" onclick="filtrarResultados('todas')">Todas</button>
-        <button class="btn-filtro" onclick="filtrarResultados('correctas')">Correctas</button>
-        <button class="btn-filtro" onclick="filtrarResultados('incorrectas')">Incorrectas</button>
-      </div>
-    </div>
-    <div id="listaResultados"></div>
+    <p class="exito-clave">El PDF está protegido con contraseña</p>
   </div>
 </div>
 
@@ -138,7 +131,7 @@ function iniciarSimulacro() {
   document.getElementById('topbar').style.display = 'flex';
   document.getElementById('examen').classList.add('activo');
   document.getElementById('navegacion').style.display = 'flex';
-  document.getElementById('retroalimentacion').classList.remove('activo');
+  document.getElementById('pantallaExito').classList.remove('activo');
 
   pruebaActiva = true;
   pasajeActual = 0;
@@ -310,19 +303,18 @@ function finalizarPrueba() {
   document.getElementById('topbar').style.display = 'none';
   document.getElementById('examen').classList.remove('activo');
   document.getElementById('navegacion').style.display = 'none';
-  document.getElementById('retroalimentacion').classList.add('activo');
 
-  mostrarResultados();
+  calcularResultados();
+  document.getElementById('pantallaExito').classList.add('activo');
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// === MOSTRAR RESULTADOS ===
-function mostrarResultados() {
+// === CALCULAR Y MOSTRAR RESUMEN EN PANTALLA DE ÉXITO ===
+function calcularResultados() {
   const totalPreguntas = pasajes.reduce((sum, p) => sum + p.preguntas.length, 0);
   let correctas = 0;
   let incorrectas = 0;
   let sinResponder = 0;
-
   const resultados = [];
 
   pasajes.forEach(pasaje => {
@@ -346,93 +338,47 @@ function mostrarResultados() {
   });
 
   const puntaje = Math.round((correctas / totalPreguntas) * 100);
-  let claseBarra = 'bajo';
-  let nivelTexto = 'Básico';
 
+  window._resultadosData = {
+    totalPreguntas, correctas, incorrectas, sinResponder, puntaje,
+    tiempoRestante,
+    resultados
+  };
+
+  document.getElementById('exitoEstudiante').textContent = 'Estudiante: ' + nombreEstudiante;
+  document.getElementById('exitoResumen').innerHTML = `
+    <div class="exito-stats">
+      <div class="exito-stat correctas">
+        <span class="exito-numero">${correctas}</span>
+        <span class="exito-label">Correctas</span>
+      </div>
+      <div class="exito-stat incorrectas">
+        <span class="exito-numero">${incorrectas}</span>
+        <span class="exito-label">Incorrectas</span>
+      </div>
+    </div>
+  `;
+}
+
+// === DESCARGAR PDF CON CONTRASEÑA ===
+function descargarPDF() {
+  const btn = document.getElementById('btnDescargarPDF');
+  if (!window._resultadosData) return;
+  const d = window._resultadosData;
+
+  btn.textContent = '⏳ Generando PDF...';
+  btn.disabled = true;
+
+  const puntaje = d.puntaje;
+  let claseBarra = 'bajo', nivelTexto = 'Básico';
   if (puntaje >= 80) { claseBarra = 'excelente'; nivelTexto = 'Excelente'; }
   else if (puntaje >= 60) { claseBarra = 'bueno'; nivelTexto = 'Bueno'; }
   else if (puntaje >= 40) { claseBarra = 'regular'; nivelTexto = 'Regular'; }
 
-  // Header
-  const header = document.getElementById('resultadoHeader');
-  header.innerHTML = `
-    <h2>Resultados del Simulacro</h2>
-    <p style="font-size:1.1rem;color:var(--secundario);margin-bottom:15px">Estudiante: <strong>${escapeHtml(nombreEstudiante)}</strong></p>
-    <div class="puntaje">${puntaje}/100</div>
-    <div class="barra-progreso-wrapper">
-      <div class="barra-progreso-fill ${claseBarra}" style="width:${puntaje}%"></div>
-    </div>
-    <p style="margin-top:10px;font-weight:600;color:var(--primario)">Nivel: ${nivelTexto}</p>
-    <div class="puntaje-detalle">
-      <div class="puntaje-item">
-        <div class="valor" style="color:var(--correcto)">${correctas}</div>
-        <div class="label">Correctas</div>
-      </div>
-      <div class="puntaje-item">
-        <div class="valor" style="color:var(--incorrecto)">${incorrectas}</div>
-        <div class="label">Incorrectas</div>
-      </div>
-      <div class="puntaje-item">
-        <div class="valor" style="color:var(--acento)">${sinResponder}</div>
-        <div class="label">Sin responder</div>
-      </div>
-      <div class="puntaje-item">
-        <div class="valor">${totalPreguntas}</div>
-        <div class="label">Total</div>
-      </div>
-    </div>
-    <p style="color:var(--texto-claro);margin-top:15px">Tiempo restante: ${Math.floor(tiempoRestante/60)}min ${tiempoRestante%60}s</p>
-    <p style="color:var(--texto-claro);font-size:0.85rem;margin-top:5px">Revise cada pregunta abajo para ver la explicación de la respuesta correcta.</p>
-  `;
-
-  // Lista de resultados
-  const lista = document.getElementById('listaResultados');
-  window._todosResultados = resultados;
-  renderizarResultados(resultados);
-}
-
-function renderizarResultados(resultados) {
-  const lista = document.getElementById('listaResultados');
-  lista.innerHTML = '';
-
-  resultados.forEach(r => {
-    let claseEstado = 'sin-respuesta';
-    let textoEstado = 'Sin responder';
-    if (r.usuario && r.esCorrecta) { claseEstado = 'correcto'; textoEstado = 'Correcta'; }
-    else if (r.usuario && !r.esCorrecta) { claseEstado = 'incorrecto'; textoEstado = 'Incorrecta'; }
-
-    let respuestasHtml = '';
-    if (r.usuario) {
-      const claseUsuario = r.esCorrecta ? 'resp-correcta' : 'resp-incorrecta';
-      respuestasHtml += `<span>Tu respuesta: <strong class="${claseUsuario}">${r.usuario}</strong></span>`;
-    } else {
-      respuestasHtml += `<span>Tu respuesta: <strong style="color:#856404">Sin responder</strong></span>`;
-    }
-    respuestasHtml += `<span>Correcta: <strong class="resp-correcta">${r.correcta}</strong></span>`;
-
-    lista.innerHTML += `
-      <div class="resultado-item" data-estado="${claseEstado}">
-        <div class="r-header">
-          <span class="r-numero">Pregunta ${r.numero}</span>
-          <span class="r-estado ${claseEstado}">${textoEstado}</span>
-        </div>
-        <div class="r-enunciado">${escapeHtml(r.enunciado.substring(0,200))}${r.enunciado.length > 200 ? '...' : ''}</div>
-        <div class="r-respuestas">${respuestasHtml}</div>
-        <div class="r-explicacion">💡 ${escapeHtml(r.explicacion)}</div>
-      </div>`;
-  });
-}
-
-function descargarPDF() {
-  const btn = document.getElementById('btnDescargarPDF');
-  const textoOriginal = btn.textContent;
-  btn.textContent = '⏳ Generando PDF...';
-  btn.disabled = true;
-
-  const resultadosCompletos = window._todosResultados || [];
+  const colorBarra = { excelente: '#28a745', bueno: '#2d6a9f', regular: '#e8a838', bajo: '#dc3545' }[claseBarra];
 
   let htmlPreguntas = '';
-  resultadosCompletos.forEach(r => {
+  d.resultados.forEach(r => {
     let textoEstado = 'Sin responder';
     let colorEstado = '#856404';
     let bgEstado = '#fff3cd';
@@ -440,42 +386,63 @@ function descargarPDF() {
     else if (r.usuario && !r.esCorrecta) { textoEstado = 'Incorrecta'; colorEstado = '#721c24'; bgEstado = '#f8d7da'; }
 
     htmlPreguntas += `
-      <div style="border:1px solid #dee2e6;border-radius:6px;padding:12px;margin-bottom:10px;page-break-inside:avoid">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-          <strong style="color:#1a3a5c">Pregunta ${r.numero}</strong>
-          <span style="font-size:0.8rem;padding:3px 10px;border-radius:12px;font-weight:600;background:${bgEstado};color:${colorEstado}">${textoEstado}</span>
+      <div style="border:1px solid #dee2e6;border-radius:6px;padding:14px;margin-bottom:10px;page-break-inside:avoid">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <strong style="color:#1a3a5c;font-size:1rem">Pregunta ${r.numero}</strong>
+          <span style="font-size:0.8rem;padding:4px 12px;border-radius:12px;font-weight:600;background:${bgEstado};color:${colorEstado}">${textoEstado}</span>
         </div>
-        <div style="font-size:0.9rem;margin-bottom:6px">${escapeHtml(r.enunciado)}</div>
-        <div style="font-size:0.85rem;display:flex;gap:15px;flex-wrap:wrap">`;
-
+        <div style="font-size:0.9rem;margin-bottom:8px;line-height:1.5">${escapeHtml(r.enunciado)}</div>
+        <div style="font-size:0.85rem;display:flex;gap:20px;flex-wrap:wrap;margin-bottom:6px">`;
     if (r.usuario) {
-      const colorUser = r.esCorrecta ? '#28a745' : '#dc3545';
-      htmlPreguntas += `<span>Tu respuesta: <strong style="color:${colorUser}">${r.usuario}</strong></span>`;
+      htmlPreguntas += `<span>Tu respuesta: <strong style="color:${r.esCorrecta ? '#28a745' : '#dc3545'}">${r.usuario}</strong></span>`;
     } else {
       htmlPreguntas += `<span>Tu respuesta: <strong style="color:#856404">Sin responder</strong></span>`;
     }
     htmlPreguntas += `<span>Correcta: <strong style="color:#28a745">${r.correcta}</strong></span>`;
-
-    htmlPreguntas += `
-        </div>
-        <div style="font-size:0.85rem;color:#555;margin-top:8px;padding:10px 14px;background:#f0f4f8;border-radius:6px;border-left:3px solid #2d6a9f">
+    htmlPreguntas += `</div>
+        <div style="font-size:0.85rem;color:#555;margin-top:8px;padding:12px 14px;background:#f0f4f8;border-radius:6px;border-left:3px solid #2d6a9f">
           💡 ${escapeHtml(r.explicacion)}
         </div>
       </div>`;
   });
 
-  const headerContent = document.getElementById('resultadoHeader').innerHTML;
-
   const pdfContent = document.createElement('div');
   pdfContent.id = 'pdfTempContainer';
-  pdfContent.style.cssText = 'position:absolute;left:-9999px;top:0;width:800px;font-family:Arial,sans-serif;color:#333;line-height:1.5';
+  pdfContent.style.cssText = 'position:absolute;left:-9999px;top:0;width:780px;font-family:Arial,sans-serif;color:#333;line-height:1.6;background:white;padding:10px';
   pdfContent.innerHTML = `
-    <div style="text-align:center;padding:20px;margin-bottom:20px;border-bottom:2px solid #1a3a5c">
-      ${headerContent}
+    <div style="text-align:center;padding:30px 20px;margin-bottom:25px;border-bottom:2px solid #1a3a5c">
+      <h1 style="color:#1a3a5c;margin-bottom:10px;font-size:1.5rem">Resultados del Simulacro</h1>
+      <p style="color:#2d6a9f;font-size:1.1rem;margin-bottom:20px">Estudiante: <strong>${escapeHtml(nombreEstudiante)}</strong></p>
+      <div style="font-size:2.5rem;font-weight:800;color:#2d6a9f;margin-bottom:15px">${puntaje}/100</div>
+      <div style="background:#dee2e6;border-radius:10px;height:14px;margin:0 auto 15px;max-width:400px;overflow:hidden">
+        <div style="height:100%;border-radius:10px;background:${colorBarra};width:${puntaje}%"></div>
+      </div>
+      <p style="font-weight:600;color:#1a3a5c;margin-bottom:20px">Nivel: ${nivelTexto}</p>
+      <table style="margin:0 auto;border-collapse:collapse">
+        <tr>
+          <td style="padding:8px 20px;text-align:center">
+            <div style="font-size:1.5rem;font-weight:700;color:#28a745">${d.correctas}</div>
+            <div style="font-size:0.8rem;color:#666">Correctas</div>
+          </td>
+          <td style="padding:8px 20px;text-align:center">
+            <div style="font-size:1.5rem;font-weight:700;color:#dc3545">${d.incorrectas}</div>
+            <div style="font-size:0.8rem;color:#666">Incorrectas</div>
+          </td>
+          <td style="padding:8px 20px;text-align:center">
+            <div style="font-size:1.5rem;font-weight:700;color:#e8a838">${d.sinResponder}</div>
+            <div style="font-size:0.8rem;color:#666">Sin responder</div>
+          </td>
+          <td style="padding:8px 20px;text-align:center">
+            <div style="font-size:1.5rem;font-weight:700;color:#333">${d.totalPreguntas}</div>
+            <div style="font-size:0.8rem;color:#666">Total</div>
+          </td>
+        </tr>
+      </table>
+      <p style="color:#666;margin-top:15px;font-size:0.85rem">Tiempo restante: ${Math.floor(d.tiempoRestante/60)}min ${d.tiempoRestante%60}s</p>
     </div>
-    <h3 style="color:#1a3a5c;margin-bottom:12px">Detalle por pregunta</h3>
+    <h3 style="color:#1a3a5c;margin-bottom:15px">Detalle por pregunta</h3>
     ${htmlPreguntas}
-    <div style="text-align:center;margin-top:20px;padding:10px;font-size:0.75rem;color:#999">
+    <div style="text-align:center;margin-top:25px;padding:15px;font-size:0.75rem;color:#999;border-top:1px solid #dee2e6">
       Simulacro Virtual - Lectura Crítica | ${new Date().toLocaleDateString('es-CO')}
     </div>
   `;
@@ -484,34 +451,27 @@ function descargarPDF() {
 
   const opt = {
     margin: [10, 12, 10, 12],
-    filename: `resultado_simulacro_${nombreEstudiante.replace(/\s+/g, '_')}.pdf`,
     image: { type: 'jpeg', quality: 0.95 },
     html2canvas: { scale: 2, useCORS: true, letterRendering: true },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
     pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
   };
 
-  html2pdf().set(opt).from(pdfContent).save().then(() => {
+  const filename = `resultado_simulacro_${nombreEstudiante.replace(/\s+/g, '_')}.pdf`;
+
+  const worker = html2pdf().set(opt).from(pdfContent);
+  worker.toPdf().then(function() {
+    worker.prop.pdf.setEncryption('0523', '0523', ['print', 'modify', 'copy', 'annot-forms']);
+    worker.prop.pdf.save(filename);
     document.body.removeChild(pdfContent);
-    btn.textContent = textoOriginal;
+    btn.textContent = '📄 Descargar PDF';
     btn.disabled = false;
-  }).catch(() => {
+  }).catch(function() {
     document.body.removeChild(pdfContent);
-    btn.textContent = textoOriginal;
+    btn.textContent = '📄 Descargar PDF';
     btn.disabled = false;
     alert('Error al generar el PDF. Intente de nuevo.');
   });
-}
-
-function filtrarResultados(filtro) {
-  document.querySelectorAll('.btn-filtro').forEach(b => b.classList.remove('activo'));
-  event.target.classList.add('activo');
-
-  let resultados = window._todosResultados || [];
-  if (filtro === 'correctas') resultados = resultados.filter(r => r.usuario && r.esCorrecta);
-  else if (filtro === 'incorrectas') resultados = resultados.filter(r => r.usuario && !r.esCorrecta);
-
-  renderizarResultados(resultados);
 }
 
 // === UTILIDADES ===

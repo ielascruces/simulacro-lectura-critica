@@ -625,6 +625,73 @@ body {
   transform: none;
 }
 
+/* === PANTALLA DE ÉXITO === */
+.pantalla-exito {
+  max-width: 600px;
+  margin: 80px auto;
+  padding: 20px;
+  display: none;
+}
+
+.pantalla-exito.activo { display: block; }
+
+.exito-card {
+  background: var(--blanco);
+  border-radius: var(--radio);
+  box-shadow: var(--sombra);
+  padding: 50px 40px;
+  text-align: center;
+}
+
+.exito-icono {
+  font-size: 4rem;
+  margin-bottom: 15px;
+}
+
+.exito-card h2 {
+  font-size: 1.6rem;
+  color: var(--primario);
+  margin-bottom: 10px;
+}
+
+.exito-estudiante {
+  font-size: 1.1rem;
+  color: var(--secundario);
+  margin-bottom: 25px;
+  font-weight: 600;
+}
+
+.exito-stats {
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+  margin-bottom: 25px;
+}
+
+.exito-stat {
+  text-align: center;
+}
+
+.exito-numero {
+  display: block;
+  font-size: 2.2rem;
+  font-weight: 800;
+}
+
+.exito-stat.correctas .exito-numero { color: var(--correcto); }
+.exito-stat.incorrectas .exito-numero { color: var(--incorrecto); }
+
+.exito-label {
+  font-size: 0.85rem;
+  color: var(--texto-claro);
+}
+
+.exito-clave {
+  margin-top: 15px;
+  font-size: 0.8rem;
+  color: var(--texto-claro);
+}
+
 /* === RESPONSIVE === */
 @media (max-width: 768px) {
   .portada { margin: 20px; padding: 30px 20px; }
