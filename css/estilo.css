@@ -601,6 +601,30 @@ body {
 .resp-correcta { color: var(--correcto); }
 .resp-incorrecta { color: var(--incorrecto); }
 
+.btn-descargar-pdf {
+  background: var(--primario);
+  color: white;
+  border: none;
+  padding: 12px 32px;
+  border-radius: 25px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-descargar-pdf:hover {
+  background: #0e2a45;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(26,58,92,0.3);
+}
+
+.btn-descargar-pdf:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
 /* === RESPONSIVE === */
 @media (max-width: 768px) {
   .portada { margin: 20px; padding: 30px 20px; }

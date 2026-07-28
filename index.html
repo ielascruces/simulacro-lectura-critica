@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Simulacro Virtual - Lectura Crítica</title>
 <link rel="stylesheet" href="css/estilo.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
 
@@ -79,6 +80,9 @@
 <!-- ======== RETROALIMENTACIÓN ======== -->
 <div id="retroalimentacion" class="retroalimentacion">
   <div class="resultado-header" id="resultadoHeader"></div>
+  <div style="text-align:center;margin-bottom:20px">
+    <button class="btn-descargar-pdf" onclick="descargarPDF()" id="btnDescargarPDF">📄 Descargar PDF</button>
+  </div>
   <div class="tabla-resultados">
     <div class="tabla-header">
       <h3>Detalle por pregunta</h3>
@@ -416,6 +420,86 @@ function renderizarResultados(resultados) {
         <div class="r-respuestas">${respuestasHtml}</div>
         <div class="r-explicacion">💡 ${escapeHtml(r.explicacion)}</div>
       </div>`;
+  });
+}
+
+function descargarPDF() {
+  const btn = document.getElementById('btnDescargarPDF');
+  const textoOriginal = btn.textContent;
+  btn.textContent = '⏳ Generando PDF...';
+  btn.disabled = true;
+
+  const resultadosCompletos = window._todosResultados || [];
+
+  let htmlPreguntas = '';
+  resultadosCompletos.forEach(r => {
+    let textoEstado = 'Sin responder';
+    let colorEstado = '#856404';
+    let bgEstado = '#fff3cd';
+    if (r.usuario && r.esCorrecta) { textoEstado = 'Correcta'; colorEstado = '#155724'; bgEstado = '#d4edda'; }
+    else if (r.usuario && !r.esCorrecta) { textoEstado = 'Incorrecta'; colorEstado = '#721c24'; bgEstado = '#f8d7da'; }
+
+    htmlPreguntas += `
+      <div style="border:1px solid #dee2e6;border-radius:6px;padding:12px;margin-bottom:10px;page-break-inside:avoid">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <strong style="color:#1a3a5c">Pregunta ${r.numero}</strong>
+          <span style="font-size:0.8rem;padding:3px 10px;border-radius:12px;font-weight:600;background:${bgEstado};color:${colorEstado}">${textoEstado}</span>
+        </div>
+        <div style="font-size:0.9rem;margin-bottom:6px">${escapeHtml(r.enunciado)}</div>
+        <div style="font-size:0.85rem;display:flex;gap:15px;flex-wrap:wrap">`;
+
+    if (r.usuario) {
+      const colorUser = r.esCorrecta ? '#28a745' : '#dc3545';
+      htmlPreguntas += `<span>Tu respuesta: <strong style="color:${colorUser}">${r.usuario}</strong></span>`;
+    } else {
+      htmlPreguntas += `<span>Tu respuesta: <strong style="color:#856404">Sin responder</strong></span>`;
+    }
+    htmlPreguntas += `<span>Correcta: <strong style="color:#28a745">${r.correcta}</strong></span>`;
+
+    htmlPreguntas += `
+        </div>
+        <div style="font-size:0.85rem;color:#555;margin-top:8px;padding:10px 14px;background:#f0f4f8;border-radius:6px;border-left:3px solid #2d6a9f">
+          💡 ${escapeHtml(r.explicacion)}
+        </div>
+      </div>`;
+  });
+
+  const headerContent = document.getElementById('resultadoHeader').innerHTML;
+
+  const pdfContent = document.createElement('div');
+  pdfContent.id = 'pdfTempContainer';
+  pdfContent.style.cssText = 'position:absolute;left:-9999px;top:0;width:800px;font-family:Arial,sans-serif;color:#333;line-height:1.5';
+  pdfContent.innerHTML = `
+    <div style="text-align:center;padding:20px;margin-bottom:20px;border-bottom:2px solid #1a3a5c">
+      ${headerContent}
+    </div>
+    <h3 style="color:#1a3a5c;margin-bottom:12px">Detalle por pregunta</h3>
+    ${htmlPreguntas}
+    <div style="text-align:center;margin-top:20px;padding:10px;font-size:0.75rem;color:#999">
+      Simulacro Virtual - Lectura Crítica | ${new Date().toLocaleDateString('es-CO')}
+    </div>
+  `;
+
+  document.body.appendChild(pdfContent);
+
+  const opt = {
+    margin: [10, 12, 10, 12],
+    filename: `resultado_simulacro_${nombreEstudiante.replace(/\s+/g, '_')}.pdf`,
+    image: { type: 'jpeg', quality: 0.95 },
+    html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+  };
+
+  html2pdf().set(opt).from(pdfContent).save().then(() => {
+    document.body.removeChild(pdfContent);
+    btn.textContent = textoOriginal;
+    btn.disabled = false;
+  }).catch(() => {
+    document.body.removeChild(pdfContent);
+    btn.textContent = textoOriginal;
+    btn.disabled = false;
+    alert('Error al generar el PDF. Intente de nuevo.');
   });
 }
 
