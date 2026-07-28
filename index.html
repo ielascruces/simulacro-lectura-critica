@@ -460,13 +460,14 @@ function descargarPDF() {
   const filename = `resultado_simulacro_${nombreEstudiante.replace(/\s+/g, '_')}.pdf`;
 
   const worker = html2pdf().set(opt).from(pdfContent);
-  worker.toPdf().then(function() {
-    worker.prop.pdf.setEncryption('0523', '0523', ['print', 'modify', 'copy', 'annot-forms']);
-    worker.prop.pdf.save(filename);
+  worker.toPdf().then(function(pdf) {
+    pdf.setEncryption('0523', '0523', ['print', 'modify', 'copy', 'annot-forms']);
+    pdf.save(filename);
     document.body.removeChild(pdfContent);
     btn.textContent = '📄 Descargar PDF';
     btn.disabled = false;
-  }).catch(function() {
+  }).catch(function(err) {
+    console.error('Error al generar PDF:', err);
     document.body.removeChild(pdfContent);
     btn.textContent = '📄 Descargar PDF';
     btn.disabled = false;
