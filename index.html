@@ -408,7 +408,7 @@ function descargarPDF() {
 
   const pdfContent = document.createElement('div');
   pdfContent.id = 'pdfTempContainer';
-  pdfContent.style.cssText = 'position:absolute;left:-9999px;top:0;width:780px;font-family:Arial,sans-serif;color:#333;line-height:1.6;background:white;padding:10px';
+  pdfContent.style.cssText = 'position:fixed;left:0;top:0;width:780px;font-family:Arial,sans-serif;color:#333;line-height:1.6;background:white;padding:10px;opacity:0;pointer-events:none;z-index:-1';
   pdfContent.innerHTML = `
     <div style="text-align:center;padding:30px 20px;margin-bottom:25px;border-bottom:2px solid #1a3a5c">
       <h1 style="color:#1a3a5c;margin-bottom:10px;font-size:1.5rem">Resultados del Simulacro</h1>
@@ -454,13 +454,13 @@ function descargarPDF() {
     image: { type: 'jpeg', quality: 0.95 },
     html2canvas: { scale: 2, useCORS: true, letterRendering: true },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+    pagebreak: { mode: ['css', 'legacy'] }
   };
 
   const filename = `resultado_simulacro_${nombreEstudiante.replace(/\s+/g, '_')}.pdf`;
 
   const worker = html2pdf().set(opt).from(pdfContent);
-  worker.toPdf().then(function(pdf) {
+  worker.toPdf().get('pdf').then(function(pdf) {
     pdf.setEncryption('0523', '0523', ['print', 'modify', 'copy', 'annot-forms']);
     pdf.save(filename);
     document.body.removeChild(pdfContent);
