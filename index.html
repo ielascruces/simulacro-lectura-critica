@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Simulacro Virtual - Lectura Crítica</title>
 <link rel="stylesheet" href="css/estilo.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 
@@ -362,117 +362,209 @@ function calcularResultados() {
 
 // === DESCARGAR PDF CON CONTRASEÑA ===
 function descargarPDF() {
-  const btn = document.getElementById('btnDescargarPDF');
+  var btn = document.getElementById('btnDescargarPDF');
   if (!window._resultadosData) return;
-  const d = window._resultadosData;
+  var d = window._resultadosData;
 
   btn.textContent = '⏳ Generando PDF...';
   btn.disabled = true;
 
-  const puntaje = d.puntaje;
-  let claseBarra = 'bajo', nivelTexto = 'Básico';
-  if (puntaje >= 80) { claseBarra = 'excelente'; nivelTexto = 'Excelente'; }
-  else if (puntaje >= 60) { claseBarra = 'bueno'; nivelTexto = 'Bueno'; }
-  else if (puntaje >= 40) { claseBarra = 'regular'; nivelTexto = 'Regular'; }
+  var puntaje = d.puntaje;
+  var nivelTexto = 'Básico';
+  var colorBarra = [220, 53, 69];
+  if (puntaje >= 80) { nivelTexto = 'Excelente'; colorBarra = [40, 167, 69]; }
+  else if (puntaje >= 60) { nivelTexto = 'Bueno'; colorBarra = [45, 106, 159]; }
+  else if (puntaje >= 40) { nivelTexto = 'Regular'; colorBarra = [232, 168, 56]; }
 
-  const colorBarra = { excelente: '#28a745', bueno: '#2d6a9f', regular: '#e8a838', bajo: '#dc3545' }[claseBarra];
+  var doc = new jspdf.jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+  doc.setFont('helvetica');
 
-  let htmlPreguntas = '';
-  d.resultados.forEach(r => {
-    let textoEstado = 'Sin responder';
-    let colorEstado = '#856404';
-    let bgEstado = '#fff3cd';
-    if (r.usuario && r.esCorrecta) { textoEstado = 'Correcta'; colorEstado = '#155724'; bgEstado = '#d4edda'; }
-    else if (r.usuario && !r.esCorrecta) { textoEstado = 'Incorrecta'; colorEstado = '#721c24'; bgEstado = '#f8d7da'; }
+  var PW = 210, PH = 297, M = 15, CW = PW - 2 * M;
+  var y = 25;
 
-    htmlPreguntas += `
-      <div style="border:1px solid #dee2e6;border-radius:6px;padding:14px;margin-bottom:10px;page-break-inside:avoid">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <strong style="color:#1a3a5c;font-size:1rem">Pregunta ${r.numero}</strong>
-          <span style="font-size:0.8rem;padding:4px 12px;border-radius:12px;font-weight:600;background:${bgEstado};color:${colorEstado}">${textoEstado}</span>
-        </div>
-        <div style="font-size:0.9rem;margin-bottom:8px;line-height:1.5">${escapeHtml(r.enunciado)}</div>
-        <div style="font-size:0.85rem;display:flex;gap:20px;flex-wrap:wrap;margin-bottom:6px">`;
-    if (r.usuario) {
-      htmlPreguntas += `<span>Tu respuesta: <strong style="color:${r.esCorrecta ? '#28a745' : '#dc3545'}">${r.usuario}</strong></span>`;
-    } else {
-      htmlPreguntas += `<span>Tu respuesta: <strong style="color:#856404">Sin responder</strong></span>`;
+  function lh(lines, fs) { return lines.length * fs * 0.37; }
+
+  function pageBreak(h) {
+    if (y + h > PH - M) {
+      addFooter();
+      doc.addPage();
+      y = 25;
     }
-    htmlPreguntas += `<span>Correcta: <strong style="color:#28a745">${r.correcta}</strong></span>`;
-    htmlPreguntas += `</div>
-        <div style="font-size:0.85rem;color:#555;margin-top:8px;padding:12px 14px;background:#f0f4f8;border-radius:6px;border-left:3px solid #2d6a9f">
-          💡 ${escapeHtml(r.explicacion)}
-        </div>
-      </div>`;
-  });
+  }
 
-  const pdfContent = document.createElement('div');
-  pdfContent.id = 'pdfTempContainer';
-  pdfContent.style.cssText = 'position:fixed;left:0;top:0;width:780px;font-family:Arial,sans-serif;color:#333;line-height:1.6;background:white;padding:10px;opacity:0;pointer-events:none;z-index:-1';
-  pdfContent.innerHTML = `
-    <div style="text-align:center;padding:30px 20px;margin-bottom:25px;border-bottom:2px solid #1a3a5c">
-      <h1 style="color:#1a3a5c;margin-bottom:10px;font-size:1.5rem">Resultados del Simulacro</h1>
-      <p style="color:#2d6a9f;font-size:1.1rem;margin-bottom:20px">Estudiante: <strong>${escapeHtml(nombreEstudiante)}</strong></p>
-      <div style="font-size:2.5rem;font-weight:800;color:#2d6a9f;margin-bottom:15px">${puntaje}/100</div>
-      <div style="background:#dee2e6;border-radius:10px;height:14px;margin:0 auto 15px;max-width:400px;overflow:hidden">
-        <div style="height:100%;border-radius:10px;background:${colorBarra};width:${puntaje}%"></div>
-      </div>
-      <p style="font-weight:600;color:#1a3a5c;margin-bottom:20px">Nivel: ${nivelTexto}</p>
-      <table style="margin:0 auto;border-collapse:collapse">
-        <tr>
-          <td style="padding:8px 20px;text-align:center">
-            <div style="font-size:1.5rem;font-weight:700;color:#28a745">${d.correctas}</div>
-            <div style="font-size:0.8rem;color:#666">Correctas</div>
-          </td>
-          <td style="padding:8px 20px;text-align:center">
-            <div style="font-size:1.5rem;font-weight:700;color:#dc3545">${d.incorrectas}</div>
-            <div style="font-size:0.8rem;color:#666">Incorrectas</div>
-          </td>
-          <td style="padding:8px 20px;text-align:center">
-            <div style="font-size:1.5rem;font-weight:700;color:#e8a838">${d.sinResponder}</div>
-            <div style="font-size:0.8rem;color:#666">Sin responder</div>
-          </td>
-          <td style="padding:8px 20px;text-align:center">
-            <div style="font-size:1.5rem;font-weight:700;color:#333">${d.totalPreguntas}</div>
-            <div style="font-size:0.8rem;color:#666">Total</div>
-          </td>
-        </tr>
-      </table>
-      <p style="color:#666;margin-top:15px;font-size:0.85rem">Tiempo restante: ${Math.floor(d.tiempoRestante/60)}min ${d.tiempoRestante%60}s</p>
-    </div>
-    <h3 style="color:#1a3a5c;margin-bottom:15px">Detalle por pregunta</h3>
-    ${htmlPreguntas}
-    <div style="text-align:center;margin-top:25px;padding:15px;font-size:0.75rem;color:#999;border-top:1px solid #dee2e6">
-      Simulacro Virtual - Lectura Crítica | ${new Date().toLocaleDateString('es-CO')}
-    </div>
-  `;
+  function addFooter() {
+    doc.setFontSize(7);
+    doc.setTextColor(150);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Simulacro Virtual - Lectura Critica | ' + new Date().toLocaleDateString('es-CO'), PW / 2, PH - 10, { align: 'center' });
+  }
 
-  document.body.appendChild(pdfContent);
+  // ===== HEADER =====
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.setTextColor(26, 58, 92);
+  doc.text('Resultados del Simulacro', PW / 2, y, { align: 'center' });
+  y += 10;
 
-  const opt = {
-    margin: [10, 12, 10, 12],
-    image: { type: 'jpeg', quality: 0.95 },
-    html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-    pagebreak: { mode: ['css', 'legacy'] }
-  };
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(45, 106, 159);
+  doc.text('Estudiante: ' + nombreEstudiante, PW / 2, y, { align: 'center' });
+  y += 11;
 
-  const filename = `resultado_simulacro_${nombreEstudiante.replace(/\s+/g, '_')}.pdf`;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(26);
+  doc.setTextColor(45, 106, 159);
+  doc.text(puntaje + '/100', PW / 2, y, { align: 'center' });
+  y += 10;
 
-  const worker = html2pdf().set(opt).from(pdfContent);
-  worker.toPdf().get('pdf').then(function(pdf) {
-    pdf.setEncryption('0523', '0523', ['print', 'modify', 'copy', 'annot-forms']);
-    pdf.save(filename);
-    document.body.removeChild(pdfContent);
-    btn.textContent = '📄 Descargar PDF';
-    btn.disabled = false;
-  }).catch(function(err) {
-    console.error('Error al generar PDF:', err);
-    document.body.removeChild(pdfContent);
-    btn.textContent = '📄 Descargar PDF';
-    btn.disabled = false;
-    alert('Error al generar el PDF. Intente de nuevo.');
-  });
+  var barW = 70, barH = 4;
+  var barX = (PW - barW) / 2;
+  doc.setFillColor(222, 226, 230);
+  doc.rect(barX, y, barW, barH, 'F');
+  if (puntaje > 0) {
+    doc.setFillColor(colorBarra[0], colorBarra[1], colorBarra[2]);
+    doc.rect(barX, y, barW * puntaje / 100, barH, 'F');
+  }
+  y += 12;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(26, 58, 92);
+  doc.text('Nivel: ' + nivelTexto, PW / 2, y, { align: 'center' });
+  y += 12;
+
+  var cols = [
+    [d.correctas, 'Correctas', [40, 167, 69]],
+    [d.incorrectas, 'Incorrectas', [220, 53, 69]],
+    [d.sinResponder, 'Sin responder', [232, 168, 56]],
+    [d.totalPreguntas, 'Total', [51, 51, 51]]
+  ];
+  var colW = CW / 4;
+  for (var i = 0; i < cols.length; i++) {
+    var c = cols[i];
+    var cx = M + colW * i + colW / 2;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.setTextColor(c[2][0], c[2][1], c[2][2]);
+    doc.text(String(c[0]), cx, y, { align: 'center' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(100, 100, 100);
+    doc.text(c[1], cx, y + 5, { align: 'center' });
+  }
+  y += 13;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(100, 100, 100);
+  doc.text('Tiempo restante: ' + Math.floor(d.tiempoRestante / 60) + 'min ' + (d.tiempoRestante % 60) + 's', PW / 2, y, { align: 'center' });
+  y += 6;
+
+  doc.setDrawColor(222, 226, 230);
+  doc.setLineWidth(0.2);
+  doc.line(M, y, PW - M, y);
+  y += 8;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(26, 58, 92);
+  doc.text('Detalle por pregunta', M, y);
+  y += 10;
+
+  // ===== QUESTIONS =====
+  for (var qi = 0; qi < d.resultados.length; qi++) {
+    var r = d.resultados[qi];
+    var estadoT = 'Sin responder';
+    var badgeC = [133, 100, 4];
+    var badgeB = [255, 243, 205];
+    if (r.usuario && r.esCorrecta) { estadoT = 'Correcta'; badgeC = [21, 87, 36]; badgeB = [212, 237, 218]; }
+    else if (r.usuario && !r.esCorrecta) { estadoT = 'Incorrecta'; badgeC = [114, 28, 36]; badgeB = [248, 215, 218]; }
+
+    var enunc = doc.splitTextToSize(r.enunciado || '', CW - 8);
+    var expl = doc.splitTextToSize('> ' + (r.explicacion || ''), CW - 18);
+
+    var boxH = 7 + lh(enunc, 8) + 5 + 6 + lh(expl, 7.5) + 5;
+
+    pageBreak(boxH + 2);
+
+    var bY = y;
+    doc.setDrawColor(222, 226, 230);
+    doc.setLineWidth(0.2);
+    doc.rect(M, bY, CW, boxH, 'D');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(26, 58, 92);
+    doc.text('Pregunta ' + r.numero, M + 3, bY + 5);
+
+    var bW = Math.max(18, doc.getTextWidth(estadoT) + 6);
+    doc.setFillColor(badgeB[0], badgeB[1], badgeB[2]);
+    doc.rect(PW - M - bW - 2, bY + 1.5, bW, 4.5, 'F');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6);
+    doc.setTextColor(badgeC[0], badgeC[1], badgeC[2]);
+    doc.text(estadoT, PW - M - bW / 2 - 2, bY + 4.5, { align: 'center' });
+
+    var cy = bY + 8;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(51, 51, 51);
+    doc.text(enunc, M + 3, cy);
+    cy += lh(enunc, 8) + 2;
+
+    doc.setFontSize(7.5);
+    var rx = M + 3;
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(51, 51, 51);
+    doc.text('Tu respuesta:', rx, cy);
+    rx += doc.getTextWidth('Tu respuesta:') + 1;
+    doc.setFont('helvetica', 'bold');
+    if (r.usuario) {
+      doc.setTextColor(r.esCorrecta ? 40 : 220, r.esCorrecta ? 167 : 53, r.esCorrecta ? 69 : 69);
+      doc.text(r.usuario, rx, cy);
+      rx += doc.getTextWidth(r.usuario) + 6;
+    } else {
+      doc.setTextColor(133, 100, 4);
+      doc.text('Sin responder', rx, cy);
+      rx += doc.getTextWidth('Sin responder') + 6;
+    }
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(51, 51, 51);
+    doc.text('Correcta:', rx, cy);
+    rx += doc.getTextWidth('Correcta:') + 1;
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(40, 167, 69);
+    doc.text(r.correcta, rx, cy);
+
+    cy += 5.5;
+
+    var exH = lh(expl, 7.5) + 4;
+    doc.setFillColor(45, 106, 159);
+    doc.rect(M + 3, cy, 2, exH, 'F');
+    doc.setFillColor(240, 244, 248);
+    doc.rect(M + 5, cy, CW - 8, exH, 'F');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(85, 85, 85);
+    doc.text(expl, M + 7, cy + 4);
+
+    y = bY + boxH + 3;
+  }
+
+  addFooter();
+
+  var filename = 'resultado_simulacro_' + nombreEstudiante.replace(/\s+/g, '_') + '.pdf';
+
+  try {
+    doc.setEncryption('0523', '0523', ['print', 'modify', 'copy', 'annot-forms']);
+  } catch (e) {}
+
+  doc.save(filename);
+
+  btn.textContent = '📄 Descargar PDF';
+  btn.disabled = false;
 }
 
 // === UTILIDADES ===
