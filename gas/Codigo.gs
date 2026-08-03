@@ -19,8 +19,8 @@
 //   5. Copia la URL generada y pegala en index.html (GOOGLE_SCRIPT_URL)
 // ============================================================
 
-var CARPETA_DRIVE_ID = 'AQUI_EL_ID_DE_LA_CARPETA';      // ← REEMPLAZAR
-var SPREADSHEET_ID   = 'AQUI_EL_ID_DEL_SHEET';           // ← REEMPLAZAR
+var CARPETA_DRIVE_ID = '12Y5S9yVWTj08h4HXxZU2b9GodnFFwW08';
+var SPREADSHEET_ID   = '1Sm_VsWocPPikvHYI2Bz8Wm7lrkHCv75QbVPJkz8EehI';
 
 function doPost(e) {
   try {
