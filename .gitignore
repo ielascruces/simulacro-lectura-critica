@@ -1,13 +1,24 @@
+# Archivos de extraccion pesados (NO subir)
 lectura critica.pdf
 paginas/
 textos/
 tessdata/
 extraccion.json
+
+# Archivos temporales del proceso de extraccion
+temp_*
+
+# Dependencias que no deben subirse
 node_modules/
 *.pyc
 __pycache__/
+
+# Sistema operativo
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# IDE / editores
 .vscode/
 .idea/
+*.sublime-*
